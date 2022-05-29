@@ -14,15 +14,14 @@ import { randomBytes } from "crypto";
 import {
 	access,
 	copyFile,
+	mkdir,
 	readFile,
 	stat,
 	writeFile
 } from "fs/promises";
 import { execSync, spawnSync } from "child_process";
-import { Readable } from "stream";
-import { createWriteStream } from "fs";
 
-export interface Options {
+interface Options {
 	gifLength?: number;
 	gifOptimizationLevel?: 0 | 1 | 2 | 3;
 	staticBase?: string;
@@ -45,7 +44,8 @@ let gifsicleWarningShowed = false;
  * @param {(0 | 1 | 2 | 3)} [options.gifOptimizationLevel=2] - the level of optimization applied to gifs (requires gifsicle to be installed & in path, see above for info on levels)
  * @param {string} [options.staticBase="https://static1.e621.net/data"] - the base url to fetch videos from
  */
-export default async function genThumbnail(input: string, type: "image" | "gif" = "image", options: Options = {}) {
+export = async function genThumbnail(input: string, type: "image" | "gif" = "image", options: Options = {}) {
+	if (!await access(`${tmpdir()}/e621-thumbnailer`).then(() => true, () => false)) await mkdir(`${tmpdir()}/e621-thumbnailer`);
 	options = options ?? {};
 	options.gifLength = options.gifLength ?? 2.5;
 	if (options.gifLength < 0) options.gifLength = 2.5;
@@ -61,10 +61,10 @@ export default async function genThumbnail(input: string, type: "image" | "gif" 
 	const id = randomBytes(16).toString("hex");
 	const short = id.slice(0, 5);
 	debug(`e621-thumbnailer:id:${short}`)("Randomly Assigned ID: %s (short: %s)", id, short);
-	const initalFile = `${tmpdir()}/thumbnailer-${id}.webm`;
-	const cutFile = `${tmpdir()}/thumbnailer-${id}.cut.webm`;
-	const outFile = `${tmpdir()}/thumbnailer-${id}.final.${type === "image" ? "png" : "gif"}`;
-	const optimizedFile = `${tmpdir()}/thumbnailer-${id}.optimized.gif`;
+	const initalFile = `${tmpdir()}/e621-thumbnailer/thumbnailer-${id}.webm`;
+	const cutFile = `${tmpdir()}/e621-thumbnailer/thumbnailer-${id}.cut.webm`;
+	const outFile = `${tmpdir()}/e621-thumbnailer/thumbnailer-${id}.final.${type === "image" ? "png" : "gif"}`;
+	const optimizedFile = `${tmpdir()}/e621-thumbnailer/thumbnailer-${id}.optimized.gif`;
 	if (!input.includes("http")) {
 		if (/^[a-f\d]{32}$/i.test(input.toLowerCase())) input = `${options.staticBase}/${input.slice(0, 2)}/${input.slice(2, 4)}/${input}.webm`;
 		else if (await access(input).then(() => true, () => false)) {
@@ -83,8 +83,7 @@ export default async function genThumbnail(input: string, type: "image" | "gif" 
 		});
 		debug(`e621-thumbnailer:download:${short}`)("Download Finished");
 		if (req.status !== 200) throw new Error(`Failed to fetch "${input}": ${req.status} ${req.statusText}`);
-		if (req.body) Readable.from(req.body).pipe(createWriteStream(initalFile));
-		else await writeFile(initalFile, Buffer.from(await req.arrayBuffer()));
+		await writeFile(initalFile, Buffer.from(await req.arrayBuffer()));
 	}
 	TempHandler.add(initalFile);
 	let len = 0;
@@ -106,7 +105,6 @@ export default async function genThumbnail(input: string, type: "image" | "gif" 
 			});
 			debug(`e621-thumbnailer:process:${short}`)("Finished.");
 			TempHandler.add(outFile);
-			console.log(outFile);
 			const contents = await readFile(outFile);
 			await TempHandler.remove(initalFile, outFile);
 			return contents;
@@ -181,4 +179,4 @@ export default async function genThumbnail(input: string, type: "image" | "gif" 
 
 		default: throw new Error(`Invalid type "${type as string}"`);
 	}
-}
+};
