@@ -24,13 +24,13 @@ import { createWriteStream } from "fs";
 
 export interface Options {
 	gifLength?: number;
+	gifOptimizationLevel?: 0 | 1 | 2 | 3;
 	staticBase?: string;
-	optimizationLevel?: 0 | 1 | 2 | 3;
 }
 
 let gifsicleWarningShowed = false;
 /**
- * Create a thumbnail from a post - this accepts an MD5, not a post id!
+ * Create a thumbnail from a post - note that you cannot provide post ids!
  *
  * Note on optimization levels:
  * * 0 - disabled
@@ -42,16 +42,16 @@ let gifsicleWarningShowed = false;
  * @param {("image" | "gif")} [type="image"] - the type of thumbnail to generate
  * @param {Object} [options]
  * @param {number} [options.gifLength=2.5] - the length of the result in seconds (if type is gif)
+ * @param {(0 | 1 | 2 | 3)} [options.gifOptimizationLevel=2] - the level of optimization applied to gifs (requires gifsicle to be installed & in path, see above for info on levels)
  * @param {string} [options.staticBase="https://static1.e621.net/data"] - the base url to fetch videos from
- * @param {(0 | 1 | 2 | 3)} [options.optimizationLevel=2] - the level of optimization applied to gifs (requires gifsicle to be installed & in path, see above for info on levels)
  */
-export default async function thumbnail(input: string, type: "image" | "gif" = "image", options: Options = {}) {
+export default async function genThumbnail(input: string, type: "image" | "gif" = "image", options: Options = {}) {
 	options = options ?? {};
 	options.gifLength = options.gifLength ?? 2.5;
 	if (options.gifLength < 0) options.gifLength = 2.5;
+	options.gifOptimizationLevel = options.gifOptimizationLevel ?? 2;
+	if (options.gifOptimizationLevel < 0 || options.gifOptimizationLevel > 3) options.gifOptimizationLevel = 2;
 	options.staticBase = options.staticBase ?? "https://static1.e621.net/data";
-	options.optimizationLevel = options.optimizationLevel ?? 2;
-	if (options.optimizationLevel < 0 || options.optimizationLevel > 3) options.optimizationLevel = 2;
 	const canOptimizeGif = await hasGifsicle();
 	if (type === "gif" && !canOptimizeGif && !gifsicleWarningShowed) {
 		gifsicleWarningShowed = true;
@@ -166,8 +166,8 @@ export default async function thumbnail(input: string, type: "image" | "gif" = "
 			debug(`e621-thumbnailer:process:${short}`)("Finished.");
 			TempHandler.add(outFile);
 
-			if (canOptimizeGif && options.optimizationLevel > 0) {
-				debug(`e621-thumbnailer:optimize:${short}`)("Optimizing.. (level: %d)", options.optimizationLevel);
+			if (canOptimizeGif && options.gifOptimizationLevel > 0) {
+				debug(`e621-thumbnailer:optimize:${short}`)("Optimizing.. (level: %d)", options.gifOptimizationLevel);
 				execSync(`gifsicle -O2 ${outFile} -o ${optimizedFile}`);
 				const ogSize = (await stat(outFile)).size;
 				const newSize = (await stat(optimizedFile)).size;
