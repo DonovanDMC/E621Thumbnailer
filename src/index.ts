@@ -19,7 +19,7 @@ import {
 	stat,
 	writeFile
 } from "fs/promises";
-import { execSync, spawnSync } from "child_process";
+import { exec, spawn } from "child_process";
 
 interface Options {
 	gifLength?: number;
@@ -88,7 +88,11 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
 	TempHandler.add(initalFile);
 	let len = 0;
 	debug(`e621-thumbnailer:probe:${short}`)("Determining total length..");
-	const [,hour, minute, second] = spawnSync(ffprobePath, [initalFile]).stderr.toString().match(/Duration: (\d\d):(\d\d):(\d\d\.\d\d)/) || ["0", "0", "0", "0"];
+	let stderr = "";
+	const proc = spawn(ffprobePath, [initalFile]);
+	for await (const chunk of proc.stderr) stderr += chunk;
+	await new Promise((resolve) => proc.on("close", resolve));
+	const [,hour, minute, second] = stderr.toString().match(/Duration: (\d\d):(\d\d):(\d\d\.\d\d)/) || ["0", "0", "0", "0"];
 	len += Number(hour)   * 3600;
 	len += Number(minute) * 60;
 	len += Number(second);
@@ -166,7 +170,9 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
 
 			if (canOptimizeGif && options.gifOptimizationLevel > 0) {
 				debug(`e621-thumbnailer:optimize:${short}`)("Optimizing.. (level: %d)", options.gifOptimizationLevel);
-				execSync(`gifsicle -O2 ${outFile} -o ${optimizedFile}`);
+				await new Promise((resolve, reject) => {
+					exec(`gifsicle -O2 ${outFile} -o ${optimizedFile}`).on("close", resolve).on("error", reject);
+				});
 				const ogSize = (await stat(outFile)).size;
 				const newSize = (await stat(optimizedFile)).size;
 				debug(`e621-thumbnailer:optimize:${short}`)("Optimized! %dMB -> %dMB", (ogSize / 1000 / 1000).toString().slice(0, 5), (newSize / 1000 / 1000).toString().slice(0, 5));
