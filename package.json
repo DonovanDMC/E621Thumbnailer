@@ -1,12 +1,13 @@
 {
   "name": "e621-thumbnailer",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Generate thumbnails for e621 videos.",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
   "scripts": {
-    "build": "rm -rf build && tsc && echo Build Finished",
-    "prepublishOnly": "npm run build"
+    "build": "rm -rf build && tsc && npm run fix-ts && echo Build Finished",
+    "prepublishOnly": "npm run build",
+    "fix-ts": "cp src/simple-thumbnail.d.ts build/src && sed -i 's/\\/\\/\\/ <reference types=\"simple-thumbnail\" \\/>/\\/\\/\\/ <reference path=\".\\/simple-thumbnail.d.ts\" \\/>/' build/src/index.d.ts"
   },
   "repository": {
     "type": "git",
