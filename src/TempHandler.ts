@@ -1,5 +1,5 @@
 import exitHook from "async-exit-hook";
-import { access, unlink } from "fs/promises";
+import { access, unlink } from "node:fs/promises";
 
 export default class TempHandler {
     static list: Array<string> = [];
@@ -9,17 +9,24 @@ export default class TempHandler {
 
     static async remove(...paths: Array<string>): Promise<void> {
         let path: string;
-        if (paths.length === 1) path = paths[0];
-        else {
+        if (paths.length === 1) {
+            path = paths[0];
+        } else {
             await Promise.all(paths.map(p => this.remove(p)));
             return;
         }
-        if (this.list.includes(path)) this.list.splice(this.list.indexOf(path), 1);
-        if (await access(path).then(() => true, () => false)) await unlink(path);
+        if (this.list.includes(path)) {
+            this.list.splice(this.list.indexOf(path), 1);
+        }
+        if (await access(path).then(() => true, () => false)) {
+            await unlink(path);
+        }
     }
 
     static async removeAll() {
-        for (const entry of this.list) await this.remove(entry);
+        for (const entry of this.list) {
+            await this.remove(entry);
+        }
     }
 }
 

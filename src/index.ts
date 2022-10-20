@@ -7,8 +7,8 @@ import { fetch } from "undici";
 import thumb from "simple-thumbnail";
 import debug from "debug";
 import ffmpeg from "fluent-ffmpeg";
-import { tmpdir } from "os";
-import { randomBytes } from "crypto";
+import { tmpdir } from "node:os";
+import { randomBytes } from "node:crypto";
 import {
     access,
     copyFile,
@@ -16,14 +16,38 @@ import {
     readFile,
     stat,
     writeFile
-} from "fs/promises";
-import { exec, spawn } from "child_process";
+} from "node:fs/promises";
+import { exec, spawn } from "node:child_process";
 
 interface Options {
+    /**
+     * The path to the ffmpeg binary.
+     * @default `ffmpeg-static` path if installed, otherwise `ffmpeg`
+     */
     ffmpegPath?: string;
+    /**
+     * The path to the ffprobe binary.
+     * @default `ffprobe-static` path if installed, otherwise `ffprobe`
+     */
     ffprobePath?: string;
+    /**
+     * The length of the result in seconds (if type is gif)
+     * @default 2.5
+     */
     gifLength?: number;
+    /**
+     * The optimization to apply to gifs.
+     * * 0 - disabled
+     * * 1 - Store only the changed portion of each image.
+     * * 2 - Store only the changed portion of each image, and use transparency. (default)
+     * * 3 - Try several optimization methods (usually slower, sometimes better results).
+     * @default 2
+     * */
     gifOptimizationLevel?: 0 | 1 | 2 | 3;
+    /**
+     * The base url to fetch videos from.
+     * @default https://static1.e621.net/data
+     */
     staticBase?: string;
 }
 
@@ -32,29 +56,42 @@ let gifsicleWarningShowed = false;
  * Create a thumbnail from a post - note that you cannot provide post ids!
  *
  * Note on optimization levels:
- * * 0 - disabled
- * * 1 - Store only the changed portion of each image.
- * * 2 - Store only the changed portion of each image, and use transparency. (default)
- * * 3 - Try several optimization methods (usually slower, sometimes better results).
- * @param {string} input - a direct url, file path, or md5
- * @param {("image" | "gif")} [type="image"] - the type of thumbnail to generate
- * @param {Object} [options]
- * @param {number} [options.gifLength=2.5] - the length of the result in seconds (if type is gif)
- * @param {(0 | 1 | 2 | 3)} [options.gifOptimizationLevel=2] - the level of optimization applied to gifs (requires gifsicle to be installed & in path, see above for info on levels)
- * @param {string} [options.staticBase="https://static1.e621.net/data"] - the base url to fetch videos from
- * @param options.ffmpegPath The path to the ffmpeg binary (defaults to `ffmpeg`)
- * @param options.ffprobePath The path to the ffprobe binary (defaults to `ffprobe`)
+ * @param input A direct url, file path, or md5
+ * @param type The type of thumbnail to generate
+ * @param options The generation options.
  */
 export = async function genThumbnail(input: string, type: "image" | "gif" = "image", options: Options = {}) {
-    if (!await access(`${tmpdir()}/e621-thumbnailer`).then(() => true, () => false)) await mkdir(`${tmpdir()}/e621-thumbnailer`);
+    if (!await access(`${tmpdir()}/e621-thumbnailer`).then(() => true, () => false)) {
+        await mkdir(`${tmpdir()}/e621-thumbnailer`);
+    }
     options = options ?? {};
     options.gifLength = options.gifLength ?? 2.5;
-    if (options.gifLength < 0) options.gifLength = 2.5;
+    if (options.gifLength < 0) {
+        options.gifLength = 2.5;
+    }
     options.gifOptimizationLevel = options.gifOptimizationLevel ?? 2;
-    if (options.gifOptimizationLevel < 0 || options.gifOptimizationLevel > 3) options.gifOptimizationLevel = 2;
+    if (options.gifOptimizationLevel < 0 || options.gifOptimizationLevel > 3) {
+        options.gifOptimizationLevel = 2;
+    }
     options.staticBase = options.staticBase ?? "https://static1.e621.net/data";
-    const ffmpegPath = options.ffmpegPath ?? "ffmpeg";
-    const ffprobePath = options.ffprobePath ?? "ffprobe";
+    /* ffmpeg */
+    let ffmpegPath = "ffmpeg";
+    try {
+        ffmpegPath = options.ffmpegPath ?? (await import("ffmpeg-static")).default!;
+    } catch {}
+    if (!ffmpegPath) {
+        throw new Error("Failed to find a valid ffmpeg binary. Please either install ffmpeg globally, and make sure it's in your PATH, or install ffmpeg-static.");
+    }
+
+    /* ffprobe */
+    let ffprobePath = "ffprobe";
+    try {
+        ffprobePath = options.ffprobePath ?? (await import("ffprobe-static")).default.path;
+    } catch {}
+    if (!ffprobePath) {
+        throw new Error("Failed to find a valid ffprobe binary. Please either install ffprobe globally, and make sure it's in your PATH, or install ffprobe-static.");
+    }
+
     const canOptimizeGif = await hasGifsicle();
     if (type === "gif" && !canOptimizeGif && !gifsicleWarningShowed) {
         gifsicleWarningShowed = true;
@@ -69,13 +106,18 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
     const outFile = `${tmpdir()}/e621-thumbnailer/thumbnailer-${id}.final.${type === "image" ? "png" : "gif"}`;
     const optimizedFile = `${tmpdir()}/e621-thumbnailer/thumbnailer-${id}.optimized.gif`;
     if (!input.includes("http")) {
-        if (/^[a-f\d]{32}$/i.test(input.toLowerCase())) input = `${options.staticBase}/${input.slice(0, 2)}/${input.slice(2, 4)}/${input}.webm`;
-        else if (await access(input).then(() => true, () => false)) {
+        if (/^[\da-f]{32}$/i.test(input.toLowerCase())) {
+            input = `${options.staticBase}/${input.slice(0, 2)}/${input.slice(2, 4)}/${input}.webm`;
+        } else if (await access(input).then(() => true, () => false)) {
             await copyFile(input, initalFile);
             fileInput = true;
-        } else throw new Error("Unable to determine input type.");
+        } else {
+            throw new Error("Unable to determine input type.");
+        }
     }
-    if (!["image", "gif"].includes(type)) throw new Error(`Invalid thumbnail type: ${type}`);
+    if (!["image", "gif"].includes(type)) {
+        throw new Error(`Invalid thumbnail type: ${type}`);
+    }
     if (!fileInput) {
         debug(`e621-thumbnailer:download:${id.slice(0, 5)}`)("Downloading %s", input);
         const req = await fetch(input, {
@@ -85,7 +127,9 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
             }
         });
         debug(`e621-thumbnailer:download:${short}`)("Download Finished");
-        if (req.status !== 200) throw new Error(`Failed to fetch "${input}": ${req.status} ${req.statusText}`);
+        if (req.status !== 200) {
+            throw new Error(`Failed to fetch "${input}": ${req.status} ${req.statusText}`);
+        }
         await writeFile(initalFile, Buffer.from(await req.arrayBuffer()));
     }
     TempHandler.add(initalFile);
@@ -93,7 +137,9 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
     debug(`e621-thumbnailer:probe:${short}`)("Determining total length..");
     let stderr = "";
     const proc = spawn(ffprobePath, [initalFile]);
-    for await (const chunk of proc.stderr) stderr += chunk;
+    for await (const chunk of proc.stderr) {
+        stderr += chunk;
+    }
     await new Promise(resolve => proc.on("close", resolve));
     const [,hour, minute, second] = stderr.toString().match(/Duration: (\d\d):(\d\d):(\d\d\.\d\d)/) || ["0", "0", "0", "0"];
     len += Number(hour)   * 3600;
@@ -101,7 +147,9 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
     len += Number(second);
     debug(`e621-thumbnailer:probe:${short}`)("Length determined: %d", len);
     let offset = Math.floor(Math.random() * len);
-    if (offset > len) offset = 0;
+    if (offset > len) {
+        offset = 0;
+    }
     const start = `00:${Math.floor(offset / 60).toString().padStart(2, "0")}:${(offset % 60).toString().padStart(2, "0")}`;
     switch (type) {
         case "image": {
@@ -131,7 +179,7 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
                     .output(cutFile)
                     .on("end", err => err ? b(err) : a())
                     .on("error", function (err) {
-                        console.log("error: ", err);
+                        console.log("error:", err);
                         b(err);
                     })
                     .run();
@@ -146,7 +194,7 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
                     .output(paletteFile)
                     .on("end", err => err ? b(err) : a())
                     .on("error", function (err) {
-                        console.log("error: ", err);
+                        console.log("error:", err);
                         b(err);
                     })
                     .run();
@@ -162,7 +210,7 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
                     .output(outFile)
                     .on("end", err => err ? b(err) : a())
                     .on("error", function (err) {
-                        console.log("error: ", err);
+                        console.log("error:", err);
                         b(err);
                     })
                     .run();
@@ -182,10 +230,14 @@ export = async function genThumbnail(input: string, type: "image" | "gif" = "ima
             }
             const contents = await readFile(canOptimizeGif ? optimizedFile : outFile);
             await TempHandler.remove(initalFile, cutFile, paletteFile, outFile);
-            if (canOptimizeGif) await TempHandler.remove(optimizedFile);
+            if (canOptimizeGif) {
+                await TempHandler.remove(optimizedFile);
+            }
             return contents;
         }
 
-        default: throw new Error(`Invalid type "${type as string}"`);
+        default: {
+            throw new Error(`Invalid type "${type as string}"`);
+        }
     }
 };

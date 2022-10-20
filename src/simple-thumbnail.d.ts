@@ -1,5 +1,5 @@
 declare module "simple-thumbnail" {
-    import type { WriteStream } from "fs";
+    import type { WriteStream } from "node:fs";
     interface Config {
         args?: Array<string>;
         path?: string;

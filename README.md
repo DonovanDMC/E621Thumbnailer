@@ -11,6 +11,7 @@ import genThumbnail from "e621-thumbnailer";
 // this is specifically the one I used for testing, and it *IS* NSFW
 const imageThumb = await genThumbnail("https://static1.e621.net/data/a2/7a/a27a89751f74fa9557a583e71c96538b.webm", "image");
 // imageThumb is a buffer of image data, which is the thumbnail
+// example: https://thumbs-v2.yiff.media/a27a89751f74fa9557a583e71c96538b.png
 
 const gifThumb = await genThumbnail("https://static1.e621.net/data/a2/7a/a27a89751f74fa9557a583e71c96538b.webm", {
 	// defaults
@@ -24,5 +25,6 @@ const gifThumb = await genThumbnail("https://static1.e621.net/data/a2/7a/a27a897
 	// * 3 - Try several optimization methods (usually slower, sometimes better results).
 	gifOptimizationLevel: 2
 });
-// gifThumb is a buffer of image data, which is the thumbnail
+// gifThumb is a buffer of image data, which is the thumbnail 
+// example: https://thumbs-v2.yiff.media/a27a89751f74fa9557a583e71c96538b.gif
 ```
