@@ -9,11 +9,11 @@ import genThumbnail from "e621-thumbnailer";
 
 // assuming top level await
 // this is specifically the one I used for testing, and it *IS* NSFW
-const imageThumb = await genThumbnail("https://static1.e621.net/data/a2/7a/a27a89751f74fa9557a583e71c96538b.webm", "image");
+const imageThumb = await genThumbnail("https://static1.e621.net/data/a5/1d/a51d55b12e7a16a37253783e52c4ec21.webm", "image");
 // imageThumb is a buffer of image data, which is the thumbnail
-// example: https://thumbs-v2.yiff.media/a27a89751f74fa9557a583e71c96538b.png
+// example: https://thumbs.yiff.media/a51d55b12e7a16a37253783e52c4ec21.png
 
-const gifThumb = await genThumbnail("https://static1.e621.net/data/a2/7a/a27a89751f74fa9557a583e71c96538b.webm", {
+const gifThumb = await genThumbnail("https://static1.e621.net/data/a5/1d/a51d55b12e7a16a37253783e52c4ec21.webm", {
 	// defaults
 	// the length of the resulting gif, in seconds - increasing this will increase the runtime and SIGNIFICANTLY increase the filesize
 	// 2.5 seconds will generally be 40mb, and 5 seconds will be 100+
@@ -26,5 +26,5 @@ const gifThumb = await genThumbnail("https://static1.e621.net/data/a2/7a/a27a897
 	gifOptimizationLevel: 2
 });
 // gifThumb is a buffer of image data, which is the thumbnail 
-// example: https://thumbs-v2.yiff.media/a27a89751f74fa9557a583e71c96538b.gif
+// example: https://thumbs.yiff.media/a51d55b12e7a16a37253783e52c4ec21.gif
 ```
