@@ -1,0 +1,279 @@
+.TH E621\-THUMBNAILER 1 "2026\-05\-13" "e621\-thumbnailer 2.0.0" "User Commands"
+.
+.SH NAME
+e621\-thumbnailer \- generate image and animated thumbnails from e621 videos
+.
+.SH SYNOPSIS
+.B e621\-thumbnailer
+.I input
+.RI [ options ]
+.
+.SH DESCRIPTION
+.B e621\-thumbnailer
+downloads or reads a video file from e621 and extracts a thumbnail from a
+randomly chosen point in the video.
+.PP
+.I input
+may be any of:
+.RS
+.TP
+.I post\-id
+A numeric post ID (e.g.\& \fB4505261\fR).
+The post is looked up via the e621 API and its file URL is used.
+.TP
+.I md5
+A 32\-character hexadecimal MD5 hash.
+The corresponding post is resolved through the e621 API.
+.TP
+.I url
+A direct HTTP or HTTPS URL to a video file.
+.TP
+.I file
+An absolute or relative path to a local video file.
+.RE
+.
+.SH OPTIONS
+.SS Output
+.TP
+.BR \-o ", " \-\-output " " \fIpath\fR
+Write the thumbnail to
+.IR path .
+If omitted, the file is written to
+.B thumbnail.\fIformat\fR
+in the current directory.
+Use
+.B \-
+to write the raw bytes to standard output instead;
+status and progress messages are redirected to standard error in this mode.
+.
+.SS Type and format
+.TP
+.BR \-t ", " \-\-type " " \fItype\fR
+Thumbnail type.
+.RS
+.TP
+.B image
+Extract a single frame.
+This is the default.
+.TP
+.B animated
+Extract a short clip and encode it as an animated image.
+.RE
+.TP
+.BR \-f ", " \-\-format " " \fIfmt\fR
+Output format.
+For
+.B image
+thumbnails:
+.BR png " (default), " jpg ", " webp .
+For
+.B animated
+thumbnails:
+.BR gif " (default), " webp .
+.
+.SS Image options
+.TP
+.BR \-w ", " \-\-width " " \fIpx\fR
+Scale the output to
+.I px
+pixels wide, preserving aspect ratio.
+Set to
+.B 0
+to keep the original dimensions.
+Default:
+.BR 0 .
+.TP
+.BI \-\-jpeg\-quality " n"
+JPEG encoding quality in the range
+.BR 1 \(en 31 .
+Lower values produce better quality and larger files.
+Default:
+.BR 2 .
+Only used when
+.B \-\-format jpg
+is set.
+.TP
+.BI \-\-webp\-quality " n"
+WebP encoding quality in the range
+.BR 0 \(en 100 .
+Default:
+.BR 85 .
+Only used when
+.B \-\-format webp
+is set.
+.
+.SS Animated options
+.TP
+.BR \-w ", " \-\-width " " \fIpx\fR
+Scale the output to
+.I px
+pixels wide.
+Default:
+.BR 480 .
+.TP
+.BI \-\-length " seconds"
+Duration of the extracted clip in seconds.
+Longer clips increase both processing time and file size significantly.
+Default:
+.BR 2.5 .
+.TP
+.BI \-\-fps " n"
+Frames per second of the output.
+Reducing this is one of the most effective ways to shrink GIF file size.
+Default:
+.BR 15 .
+.TP
+.BI \-\-colors " n"
+Number of colours in the GIF palette.
+Must be between
+.B 2
+and
+.BR 256 .
+Fewer colours produce smaller files at the cost of quality.
+Default:
+.BR 128 .
+Only used when
+.B \-\-format gif
+is set.
+.TP
+.BI \-\-quality " n"
+WebP encoding quality in the range
+.BR 0 \(en 100 .
+Default:
+.BR 75 .
+Only used when
+.B \-\-format webp
+is set.
+.TP
+.BI \-\-gif\-optimize " level"
+Optimisation level passed to
+.BR gifsicle (1)
+after encoding, in the range
+.BR 0 \(en 3 .
+.B 0
+disables optimisation entirely.
+Levels
+.BR 1 \(en 3
+correspond to gifsicle's
+.BR \-O1 ", " \-O2 ", " \-O3
+flags respectively.
+Requires
+.B gifsicle
+to be present in
+.BR PATH .
+Default:
+.BR 0 .
+Only used when
+.B \-\-format gif
+is set.
+.
+.SS Binary paths
+.TP
+.BI \-\-ffmpeg " path"
+Absolute path to the
+.B ffmpeg
+binary.
+If omitted, the path bundled with the
+.B ffmpeg\-static
+package is used when available, otherwise
+.B ffmpeg
+is looked up in
+.BR PATH .
+.TP
+.BI \-\-ffprobe " path"
+Absolute path to the
+.B ffprobe
+binary.
+If omitted, the path bundled with the
+.B ffprobe\-static
+package is used when available, otherwise
+.B ffprobe
+is looked up in
+.BR PATH .
+.
+.SS Miscellaneous
+.TP
+.BR \-h ", " \-\-help
+Print a usage summary and exit with status
+.BR 0 .
+.
+.SH EXIT STATUS
+.TP
+.B 0
+Thumbnail generated and saved successfully.
+.TP
+.B 1
+Invalid arguments, or an error occurred during generation.
+.
+.SH EXAMPLES
+Generate a PNG thumbnail for post 4505261 and save it to the current directory:
+.PP
+.RS
+.nf
+e621\-thumbnailer 4505261
+.fi
+.RE
+.PP
+Generate a 3\-second animated GIF with gifsicle level\-2 optimisation:
+.PP
+.RS
+.nf
+e621\-thumbnailer 4505261 \-t animated \-\-length 3 \-\-gif\-optimize 2 \-o out.gif
+.fi
+.RE
+.PP
+Generate an animated WebP from an MD5 hash:
+.PP
+.RS
+.nf
+e621\-thumbnailer a51d55b12e7a16a37253783e52c4ec21 \-t animated \-f webp \-o out.webp
+.fi
+.RE
+.PP
+Generate a JPEG thumbnail from a local file at a specific width:
+.PP
+.RS
+.nf
+e621\-thumbnailer ./video.webm \-f jpg \-w 640 \-o thumb.jpg
+.fi
+.RE
+.PP
+Pipe a PNG thumbnail directly into
+.BR display (1)
+without writing a file:
+.PP
+.RS
+.nf
+e621\-thumbnailer 4505261 \-o \- | display
+.fi
+.RE
+.PP
+Pipe an animated GIF into a network socket:
+.PP
+.RS
+.nf
+e621\-thumbnailer 4505261 \-t animated \-o \- | nc host 1234
+.fi
+.RE
+.PP
+Specify explicit binary paths when neither system binaries nor the static
+packages are available:
+.PP
+.RS
+.nf
+e621\-thumbnailer 4505261 \-\-ffmpeg /opt/ffmpeg/bin/ffmpeg \e
+    \-\-ffprobe /opt/ffmpeg/bin/ffprobe
+.fi
+.RE
+.
+.SH SEE ALSO
+.BR ffmpeg (1),
+.BR ffprobe (1),
+.BR gifsicle (1)
+.
+.SH AUTHORS
+Donovan Daniels <hewwo@yiff.rocks>
+.PP
+Source and issue tracker:
+.UR https://github.com/DonovanDMC/E621Thumbnailer
+.UE
