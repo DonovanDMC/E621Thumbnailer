@@ -82,8 +82,8 @@ importers:
         specifier: ^8.57.1
         version: 8.59.3(eslint@9.39.4(jiti@2.7.0))(typescript@6.0.3)
       undici-types:
-        specifier: ^8.0.2
-        version: 8.2.0
+        specifier: ^8.3.0
+        version: 8.3.0
     optionalDependencies:
       ffmpeg-static:
         specifier: ^5.3.0
@@ -1568,8 +1568,8 @@ packages:
   undici-types@7.21.0:
     resolution: {integrity: sha512-w9IMgQrz4O0YN1LtB7K5P63vhlIOvC7opSmouCJ+ZywlPAlO9gIkJ+otk6LvGpAs2wg4econaCz3TvQ9xPoyuQ==}
 
-  undici-types@8.2.0:
-    resolution: {integrity: sha512-uciYZ5yCmf+QJb18kJw10HjquzM7K0z992vWcI+84KeBpTfXT4hfgfGJ5DQbf/mCBPACofkrjvqgcjZfuujjFA==}
+  undici-types@8.3.0:
+    resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
   untildify@4.0.0:
     resolution: {integrity: sha512-KK8xQ1mkzZeg9inewmFVDNkg3l5LUhoq9kN6iWYB/CC9YMG8HA+c1Q8HwDe6dEX7kErrEVNVBO3fWsVq5iDgtw==}
@@ -3298,7 +3298,7 @@ snapshots:
 
   undici-types@7.21.0: {}
 
-  undici-types@8.2.0: {}
+  undici-types@8.3.0: {}
 
   untildify@4.0.0: {}
 
